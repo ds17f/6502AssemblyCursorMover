@@ -41,7 +41,7 @@ init:
 
 ; -- Main Program Loop --
 main:
-    JSR readArrow
+    JSR readKeyboard
     JSR draw
     ; TODO: Stuff
     ; TODO: Stuff
@@ -60,17 +60,22 @@ draw:
     STA ($10),Y     ; store it in the current cursor position
 RTS
 
-readArrow:
-    LDA $FF     ; arrow is located here
+readKeyboard:
+    LDA $FF     ; keypress is located here
+    LDX #$00    ; clear the keypress
+    STX $FF     ; clear the keypress
+
+    ; keypress values are the hex ascii codes
+    ; so we can just look them up
 
     left:
-        CMP #$61    ; is left?
+        CMP #$61    ; is 'a'?
         BNE right
         ; store the offset - 1
         RTS
 
     right:
-        CMP #$64    ; is right?
+        CMP #$64    ; is 'd'?
         BNE up 
         ; store the offset + 1
         LDX #$01
@@ -79,39 +84,47 @@ readArrow:
         RTS
 
     up: 
-        CMP #$77    ; is up?
+        CMP #$77    ; is 'w'?
         BNE down
         RTS
 
     down: 
-        LDA $FF     ; arrow is located here
-        CMP #$73    ; is down?
+        CMP #$73    ; is 's'?
         ; no branch, just exit
-        ; store the offset + 20 (a new line)
+        BNE finishKeyboard
+
+        ; store the offset + 20
         LDX #$20
         STX $13
         JSR calculateOffset
         RTS
-
-    ; clear the arrow
-    LDX #$00    ; clear the arrow
-    STX $FF     ; clear the arrow
+    
+    finishKeyboard:
+        ; TODO: anything else?
 RTS
 
 
 calculateOffset:
     ; store the old address before we change it
-    LDY $10
-    STY $15
-    LDY $11
-    STY $16
+    LDY $10         ; load the low byte
+    STY $15         ; store a copy of the low byte
+    LDY $11         ; load the high byte
+    STY $16         ; store a copy of the high byte
 
     ; TODO: need to make this able to do 16 bit logic, bounds check, etc...
-    LDA $10     ; load the low byte of the screen address
-    CLC         ; clear the carry flag because we're going to need it
-    ADC $13     ; add the offset to the accumulated value (and track the carry)
-    STA $10     ; write the low byte back to memory
-    ; TODO: need to figure out how to process the carry flag and write the high byte
+    LDA $10         ; load the low byte of the screen address
+    CLC             ; clear the carry flag because we're going to need it
+    ADC $13         ; add the offset to the accumulated value (and track the carry)
+    STA $10         ; write the low byte back to memory
+    BCC noCarry    ; if the carry flag isn't set we skip the carry logic 
+        LDX $11         ; Load the high byte into x
+        INX             ; increment x to cover the carry
+        CLC
+        STX $11         ; store the high byte back
+    noCarry:
+
+
+
     LDA #$00    ; setup a clear for the offset (because we've used it)
     STA $13     ; clear the offset (because we've used it)
 RTS
